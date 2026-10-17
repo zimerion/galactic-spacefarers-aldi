@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "gen/srv",
+    "sourceMap": false
+  },
+  "include": [
+    "srv/**/*",
+    "@cds-models/**/*"
+  ]
+}
