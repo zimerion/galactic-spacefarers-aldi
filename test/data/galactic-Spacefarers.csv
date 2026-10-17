@@ -1,0 +1,11 @@
+ID;firstName;lastName;email;stardustCollection;wormholeNavigationSkill;originPlanet_code;spacesuitColor_code;position_ID
+04ae85f9-b0f3-48e8-bf63-1136711c9062;Nova;Quasar;nova.quasar@galaxy.test;12000;9;MILSANI;NAVY;c8786d2d-05c9-49bc-86ea-769378e7955a
+1d8f8e8a-afe8-4da1-a635-dc81758fc659;Orion;Kovács;orion.kovacs@galaxy.test;5000;6;MILSANI;SKY;231ebbf0-0a0d-4451-a06c-789251d68e4f
+147200a1-4ded-4dee-8a5b-9613b72d2636;Luna;Csillag;luna.csillag@galaxy.test;4999;5;MOSERROTH;ORANGE;4231f9be-a512-44e3-bd7f-8c5236b0b5ac
+6663a37b-3ad1-4cee-8296-613151fadbb5;Rigel;Nagy;rigel.nagy@galaxy.test;1000;2;MOSERROTH;YELLOW;885e88dc-7d87-4288-a530-fd45f418cb18
+e87b4092-c97b-4687-9b54-5f3c729d59f3;Vega;Horváth;vega.horvath@galaxy.test;999;3;LACURA;RED;e4f4f8cc-2eb8-4587-8e8d-0a27884117fa
+83e754b6-3997-46c2-9dda-336e0168a938;Cosmo;Szabó;cosmo.szabo@galaxy.test;0;1;LACURA;NAVY;cf5e69ac-25bc-437c-94e0-8f6d11f03a55
+f4f09676-8f86-433b-9765-a732697e9113;Andromeda;Tóth;andromeda.toth@galaxy.test;7350;8;CRANE;SKY;c8786d2d-05c9-49bc-86ea-769378e7955a
+527cabbb-7123-4b8f-8c22-0d84825a90d5;Sirius;Varga;sirius.varga@galaxy.test;2400;4;WORKZONE;ORANGE;231ebbf0-0a0d-4451-a06c-789251d68e4f
+96330ea7-2cd2-42a8-a1d7-3e9f7609514b;Lyra;Molnár;lyra.molnar@galaxy.test;150;1;GUTBIO;YELLOW;885e88dc-7d87-4288-a530-fd45f418cb18
+561f8ab3-8a14-4ef7-a588-76ec1134dd84;Altair;Farkas;altair.farkas@galaxy.test;3100;5;CRANE;RED;e4f4f8cc-2eb8-4587-8e8d-0a27884117fa
