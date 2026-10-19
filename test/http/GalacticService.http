@@ -151,3 +151,8 @@ Authorization: Basic nova:
   "originPlanet_code": "MILSANI",
   "position_ID": "c8786d2d-05c9-49bc-86ea-769378e7955a"
 }
+
+
+### List report query: medium stardust status, sorted by stardust, second page of one
+GET {{server}}/galactic/Spacefarers?$filter=stardustStatus eq 'MEDIUM'&$orderby=stardustCollection desc&$top=1&$skip=1&$count=true&$expand=stardustLevel,spacesuitColor
+Authorization: Basic luna:

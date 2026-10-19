@@ -42,8 +42,8 @@ const UNKNOWN_ID = '99999999-0000-4000-8000-000000000001'
 const WORMHOLE_PILOT = 'c8786d2d-05c9-49bc-86ea-769378e7955a'
 const STAR_CARTOGRAPHER = '231ebbf0-0a0d-4451-a06c-789251d68e4f'
 const ORION_KOVACS = '1d8f8e8a-afe8-4da1-a635-dc81758fc659'
-const ENTITIES = ['Spacefarers', 'Departments', 'Positions', 'Planets', 'SuitColors']
-const VALUE_LISTS = ['Departments', 'Positions', 'Planets', 'SuitColors']
+const ENTITIES = ['Spacefarers', 'Departments', 'Positions', 'Planets', 'SuitColors', 'StardustStatuses']
+const VALUE_LISTS = ['Departments', 'Positions', 'Planets', 'SuitColors', 'StardustStatuses']
 
 const newSpacefarer = (originPlanet_code: string, email: string) => ({
   firstName: 'Test', lastName: 'Cadet', email, originPlanet_code
@@ -272,5 +272,49 @@ describe('GalacticService welcome e-mail', () => {
     await PATCH(`/galactic/Spacefarers(${NOVA_QUASAR})`, { stardustCollection: 1 }, as('nova'))
     await flushQueue()
     assert.equal(notifications.length, 0)
+  })
+})
+
+describe('GalacticService list report', () => {
+  it('derives the stardust status and its criticality at the boundaries', async () => {
+    const rows = await SELECT.from('galactic.Spacefarers').columns('stardustCollection', 'stardustStatus', 'stardustCriticality').orderBy('stardustCollection')
+    assert.deepEqual(rows.map((s: Spacefarer) => [s.stardustCollection, s.stardustStatus, s.stardustCriticality]), [
+      [0, 'LOW', 1], [150, 'LOW', 1], [999, 'LOW', 1], [1000, 'MEDIUM', 2], [2400, 'MEDIUM', 2], [3100, 'MEDIUM', 2], [4999, 'MEDIUM', 2],
+      [5000, 'HIGH', 3], [7350, 'HIGH', 3], [12000, 'HIGH', 3],
+    ])
+  })
+
+  it('covers every stardust collection with exactly one status range', async () => {
+    const ranges: { minStardust: number, maxStardust: number | null }[] = await SELECT.from('galactic.StardustStatuses').columns('minStardust', 'maxStardust').orderBy('minStardust')
+    assert.equal(ranges[0].minStardust, 0)
+    ranges.slice(1).forEach((range, i) => assert.equal(range.minStardust, ranges[i].maxStardust))
+    assert.equal(ranges.at(-1)?.maxStardust, null)
+  })
+
+  it('filters, sorts and pages the spacefarers of the own planet', async () => {
+    const { data } = await GET("/galactic/Spacefarers?$filter=stardustStatus eq 'MEDIUM'&$orderby=stardustCollection desc&$top=1&$skip=1&$count=true", as('luna'))
+    assert.equal(data['@odata.count'], 2)
+    assert.deepEqual(data.value.map((s: Spacefarer) => s.lastName), ['Nagy'])
+  })
+
+  it('shows the stardust status with its criticality and the spacesuit color in the list', async () => {
+    const { data } = await GET('/galactic/$metadata?$format=json', as('luna'))
+    const lineItem: { Value: { $Path: string }, Criticality?: { $Path: string } }[] =
+      data.GalacticService.$Annotations['GalacticService.Spacefarers']['@UI.LineItem']
+    const column = (path: string) => lineItem.find(field => field.Value.$Path === path)
+    assert.deepEqual(column('stardustStatus')?.Criticality, { $Path: 'stardustCriticality' })
+    assert.ok(column('spacesuitColor_code'), 'spacesuitColor_code')
+  })
+
+  it('filters the list by stardust status and spacesuit color from fixed value lists', async () => {
+    const { data } = await GET('/galactic/$metadata?$format=json', as('luna'))
+    const annotations = data.GalacticService.$Annotations
+    const filters: string[] = annotations['GalacticService.Spacefarers']['@UI.SelectionFields'].map((f: { $PropertyPath: string } | string) => typeof f === 'string' ? f : f.$PropertyPath)
+    for (const [property, collection] of [['stardustStatus', 'StardustStatuses'], ['spacesuitColor_code', 'SuitColors']]) {
+      assert.ok(filters.includes(property), property)
+      const field = annotations[`GalacticService.Spacefarers/${property}`]
+      assert.equal(field['@Common.ValueList'].CollectionPath, collection, property)
+      assert.equal(field['@Common.ValueListWithFixedValues'], true, property)
+    }
   })
 })
