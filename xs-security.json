@@ -1,0 +1,44 @@
+{
+  "xsappname": "galactic-spacefarer",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.Viewer",
+      "description": "Read spacefarers of the assigned planet"
+    },
+    {
+      "name": "$XSAPPNAME.Commander",
+      "description": "Manage spacefarers of the assigned planet"
+    }
+  ],
+  "attributes": [
+    {
+      "name": "planet",
+      "description": "Origin planet code the user is allowed to access",
+      "valueType": "s",
+      "valueRequired": true
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "Viewer",
+      "description": "Read spacefarers of the assigned planet",
+      "scope-references": [
+        "$XSAPPNAME.Viewer"
+      ],
+      "attribute-references": [
+        "planet"
+      ]
+    },
+    {
+      "name": "Commander",
+      "description": "Manage spacefarers of the assigned planet",
+      "scope-references": [
+        "$XSAPPNAME.Commander"
+      ],
+      "attribute-references": [
+        "planet"
+      ]
+    }
+  ]
+}

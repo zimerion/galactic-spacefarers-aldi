@@ -6,7 +6,8 @@
     "node": ">=24"
   },
   "dependencies": {
-    "@sap/cds": "^10"
+    "@sap/cds": "^10",
+    "@sap/xssec": "^4"
   },
   "devDependencies": {
     "@cap-js/cds-typer": "^0.41.1",
@@ -26,6 +27,50 @@
     "typecheck": "cds-typer \"*\" && tsc --noEmit"
   },
   "private": true,
+  "cds": {
+    "requires": {
+      "[development]": {
+        "auth": {
+          "kind": "mocked",
+          "users": {
+            "nova": {
+              "roles": [
+                "Commander"
+              ],
+              "attr": {
+                "planet": [
+                  "MILSANI"
+                ]
+              }
+            },
+            "luna": {
+              "roles": [
+                "Viewer"
+              ],
+              "attr": {
+                "planet": [
+                  "MOSERROTH"
+                ]
+              }
+            },
+            "tandil": {
+              "roles": [
+                "Commander"
+              ],
+              "attr": {
+                "planet": "TANDIL"
+              }
+            },
+            "intruder": {},
+            "*": false
+          }
+        }
+      },
+      "[production]": {
+        "auth": "xsuaa"
+      }
+    }
+  },
   "imports": {
     "#cds-models/*": "./@cds-models/*/index.js"
   },
