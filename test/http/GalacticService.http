@@ -42,6 +42,7 @@ Authorization: Basic nova:
   "stardustCollection": 1200,
   "wormholeNavigationSkill": 4,
   "originPlanet_code": "MILSANI",
+  "IsActiveEntity": true,
   "spacesuitColor_code": "SKY",
   "position_ID": "231ebbf0-0a0d-4451-a06c-789251d68e4f"
 }
@@ -71,7 +72,8 @@ Authorization: Basic nova:
   "firstName": "Sneaky",
   "lastName": "Spy",
   "email": "sneaky.spy@galaxy.test",
-  "originPlanet_code": "MOSERROTH"
+  "originPlanet_code": "MOSERROTH",
+  "IsActiveEntity": true
 }
 
 
@@ -109,7 +111,8 @@ Authorization: Basic tandil:
   "firstName": "Luna",
   "lastName": "Twin",
   "email": "luna.csillag@galaxy.test",
-  "originPlanet_code": "TANDIL"
+  "originPlanet_code": "TANDIL",
+  "IsActiveEntity": true
 }
 
 
@@ -134,6 +137,7 @@ Authorization: Basic nova:
   "email": "mira.nebula@galaxy.test",
   "stardustCollection": 100,
   "originPlanet_code": "MILSANI",
+  "IsActiveEntity": true,
   "position_ID": "231ebbf0-0a0d-4451-a06c-789251d68e4f"
 }
 
@@ -149,6 +153,7 @@ Authorization: Basic nova:
   "email": "rookie.pilot@galaxy.test",
   "wormholeNavigationSkill": 3,
   "originPlanet_code": "MILSANI",
+  "IsActiveEntity": true,
   "position_ID": "c8786d2d-05c9-49bc-86ea-769378e7955a"
 }
 

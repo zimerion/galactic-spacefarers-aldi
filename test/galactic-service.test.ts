@@ -42,12 +42,13 @@ const UNKNOWN_ID = '99999999-0000-4000-8000-000000000001'
 const WORMHOLE_PILOT = 'c8786d2d-05c9-49bc-86ea-769378e7955a'
 const STAR_CARTOGRAPHER = '231ebbf0-0a0d-4451-a06c-789251d68e4f'
 const ORION_KOVACS = '1d8f8e8a-afe8-4da1-a635-dc81758fc659'
-const ENTITIES = ['Spacefarers', 'Departments', 'Positions', 'Planets', 'SuitColors', 'StardustStatuses']
+const ENTITIES = ['Spacefarers', 'Departments', 'Positions', 'Planets', 'SuitColors', 'StardustStatuses', 'Configuration']
 const VALUE_LISTS = ['Departments', 'Positions', 'Planets', 'SuitColors', 'StardustStatuses']
 
-const newSpacefarer = (originPlanet_code: string, email: string) => ({
+const candidate = (originPlanet_code: string, email: string) => ({
   firstName: 'Test', lastName: 'Cadet', email, originPlanet_code
 })
+const newSpacefarer = (originPlanet_code: string, email: string) => ({ ...candidate(originPlanet_code, email), IsActiveEntity: true })
 
 describe('GalacticService authentication', () => {
   it('rejects unauthenticated requests (anonymous and unknown users) with 401', async () => {
@@ -103,7 +104,7 @@ describe('GalacticService planet isolation', () => {
   it('does not let a commander create a spacefarer on another planet', async () => {
     const attempts = {
       'POST': () => POST('/galactic/Spacefarers', newSpacefarer('MOSERROTH', 'spy1@galaxy.test'), as('nova')),
-      'deep POST': () => POST('/galactic/Spacefarers', { firstName: 'Test', lastName: 'Cadet', email: 'spy2@galaxy.test', originPlanet: { code: 'MOSERROTH' } }, as('nova')),
+      'deep POST': () => POST('/galactic/Spacefarers', { firstName: 'Test', lastName: 'Cadet', email: 'spy2@galaxy.test', originPlanet: { code: 'MOSERROTH' }, IsActiveEntity: true }, as('nova')),
       'PUT upsert': () => PUT(`/galactic/Spacefarers(${UNKNOWN_ID})`, newSpacefarer('MOSERROTH', 'spy3@galaxy.test'), as('nova')),
     }
     for (const [name, attempt] of Object.entries(attempts)) {

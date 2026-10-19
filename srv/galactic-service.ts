@@ -1,5 +1,5 @@
 import cds from '@sap/cds'
-import { Positions, Spacefarers, type Position } from '#cds-models/GalacticService'
+import { Configuration, Positions, Spacefarers, type Position } from '#cds-models/GalacticService'
 
 const planetsOf = (user: cds.User): string[] => [user.attr.planet ?? []].flat()
 
@@ -20,14 +20,22 @@ export default class GalacticService extends cds.ApplicationService {
     // @restrict doesn't filter navigation targets
     this.before('READ', '*', async req => {
       const [root, ...path] = req.query.SELECT?.from?.ref ?? []
-      if (!path.length || (typeof root === 'string' ? root : root.id) !== Spacefarers.name) return
-      const parent: { ID: string } | undefined = await SELECT.one.from({ ref: [root] }).columns('ID')
-        .where({ originPlanet_code: { in: planetsOf(req.user) } })
+      if (!path.length) return
+      const name = typeof root === 'string' ? root : root.id
+      const scope = name === Spacefarers.name ? { originPlanet_code: { in: planetsOf(req.user) } }
+        : name === Spacefarers.drafts.name ? { 'DraftAdministrativeData.InProcessByUser': req.user.id }
+        : undefined
+      if (!scope) return
+      const parent: { ID: string } | undefined = await SELECT.one.from({ ref: [root] }).columns('ID').where(scope)
       if (!parent) return req.reject(404)
     })
 
+    this.before('NEW', Spacefarers.drafts, req => {
+      req.data.originPlanet_code ??= planetsOf(req.user)[0] ?? null
+    })
+
     // @restrict's where clause isn't checked against incoming data
-    this.before(['CREATE', 'UPDATE'], Spacefarers, req => {
+    this.before(['CREATE', 'UPDATE', 'NEW'], [Spacefarers, Spacefarers.drafts], req => {
       const { originPlanet_code: planet, email } = req.data
       if (planet !== undefined) {
         const planets = planetsOf(req.user)
@@ -55,6 +63,15 @@ export default class GalacticService extends cds.ApplicationService {
       if (position && skill < (position.minNavigationSkill ?? 1)) return rejectSkill(req, position)
     })
 
+    this.before('UPDATE', Spacefarers.drafts, async req => {
+      if (req.data.wormholeNavigationSkill !== undefined) return
+      const position = await positionOf(req.data.position_ID)
+      if (!position) return
+      const current = await SELECT.one.from(req.subject).columns('wormholeNavigationSkill')
+      const minimum = position.minNavigationSkill ?? 1
+      if ((current?.wormholeNavigationSkill ?? 1) < minimum) req.data.wormholeNavigationSkill = minimum
+    })
+
     this.on(['CREATE', 'UPDATE'], Spacefarers, async (req, next) => {
       try {
         return await next()
@@ -65,6 +82,8 @@ export default class GalacticService extends cds.ApplicationService {
           : req.reject({ status: 409, message: 'SPACEFARER_EXISTS' })
       }
     })
+
+    this.on('READ', Configuration, req => req.reply({ ID: 'default', isCommander: req.user.is('Commander') }))
 
     this.after('CREATE', Spacefarers, async (_, req) => {
       const { firstName, lastName, email } = req.data
