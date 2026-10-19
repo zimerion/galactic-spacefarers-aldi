@@ -161,3 +161,82 @@ Authorization: Basic nova:
 ### List report query: medium stardust status, sorted by stardust, second page of one
 GET {{server}}/galactic/Spacefarers?$filter=stardustStatus eq 'MEDIUM'&$orderby=stardustCollection desc&$top=1&$skip=1&$count=true&$expand=stardustLevel,spacesuitColor
 Authorization: Basic luna:
+
+
+### Object page: commander starts editing an own spacefarer (draft)
+POST {{server}}/galactic/Spacefarers(ID=04ae85f9-b0f3-48e8-bf63-1136711c9062,IsActiveEntity=true)/GalacticService.draftEdit
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "PreserveChanges": true
+}
+
+
+### Object page: commander changes the stardust collection and the spacesuit color in the draft
+PATCH {{server}}/galactic/Spacefarers(ID=04ae85f9-b0f3-48e8-bf63-1136711c9062,IsActiveEntity=false)
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "stardustCollection": 500,
+  "spacesuitColor_code": "SKY"
+}
+
+
+### Object page: commander saves the draft
+POST {{server}}/galactic/Spacefarers(ID=04ae85f9-b0f3-48e8-bf63-1136711c9062,IsActiveEntity=false)/GalacticService.draftActivate
+Content-Type: application/json
+Authorization: Basic nova:
+
+{}
+
+
+### Object page: commander discards the draft instead of saving it
+DELETE {{server}}/galactic/Spacefarers(ID=04ae85f9-b0f3-48e8-bf63-1136711c9062,IsActiveEntity=false)
+Authorization: Basic nova:
+
+
+### Object page: commander creates a new draft, the origin planet defaults to their own
+# @name newDraft
+POST {{server}}/galactic/Spacefarers
+Content-Type: application/json
+Authorization: Basic nova:
+
+{}
+
+
+### Object page: picking a position raises the skill to its minimum
+PATCH {{server}}/galactic/Spacefarers(ID={{newDraft.response.body.$.ID}},IsActiveEntity=false)
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "firstName": "Vega",
+  "lastName": "Draft",
+  "email": "vega.draft@galaxy.test",
+  "position_ID": "c8786d2d-05c9-49bc-86ea-769378e7955a"
+}
+
+
+### Object page: saving the new draft adds the launch bonus and sends the welcome e-mail
+POST {{server}}/galactic/Spacefarers(ID={{newDraft.response.body.$.ID}},IsActiveEntity=false)/GalacticService.draftActivate
+Content-Type: application/json
+Authorization: Basic nova:
+
+{}
+
+
+### Object page: Create, Edit and Delete are shown only to commanders
+GET {{server}}/galactic/Configuration
+Authorization: Basic luna:
+
+
+### Object page: viewer cannot edit
+POST {{server}}/galactic/Spacefarers(ID=147200a1-4ded-4dee-8a5b-9613b72d2636,IsActiveEntity=true)/GalacticService.draftEdit
+Content-Type: application/json
+Authorization: Basic luna:
+
+{
+  "PreserveChanges": true
+}

@@ -319,3 +319,96 @@ describe('GalacticService list report', () => {
     }
   })
 })
+
+describe('GalacticService object page', () => {
+  const active = (ID: string) => `/galactic/Spacefarers(ID=${ID},IsActiveEntity=true)`
+  const draft = (ID: string) => `/galactic/Spacefarers(ID=${ID},IsActiveEntity=false)`
+  const edit = (ID: string, username: string) => POST(`${active(ID)}/GalacticService.draftEdit`, { PreserveChanges: true }, as(username))
+  const save = (ID: string, username: string) => POST(`${draft(ID)}/GalacticService.draftActivate`, {}, as(username))
+
+  it('edits the stardust collection and the spacesuit color through a draft', async () => {
+    await edit(NOVA_QUASAR, 'nova')
+    const { data: edited } = await PATCH(draft(NOVA_QUASAR), { stardustCollection: 500, spacesuitColor_code: 'SKY' }, as('nova'))
+    assert.deepEqual([edited.stardustStatus, edited.stardustCriticality], ['LOW', 1])
+    await save(NOVA_QUASAR, 'nova')
+    const { data } = await GET(active(NOVA_QUASAR), as('nova'))
+    assert.deepEqual([data.stardustCollection, data.stardustStatus, data.spacesuitColor_code], [500, 'LOW', 'SKY'])
+    await flushQueue()
+    assert.equal(notifications.length, 0)
+  })
+
+  it('creates a candidate through a draft with the launch bonus and a single welcome e-mail', async () => {
+    const { data: created } = await POST('/galactic/Spacefarers', {}, as('nova'))
+    assert.equal(created.originPlanet_code, 'MILSANI')
+    const { data: edited } = await PATCH(draft(created.ID), { ...candidate('MILSANI', 'Draft.Cadet@galaxy.test'), position_ID: WORMHOLE_PILOT }, as('nova'))
+    assert.equal(edited.wormholeNavigationSkill, 7)
+    const { data } = await save(created.ID, 'nova')
+    assert.deepEqual([data.email, data.stardustCollection], ['draft.cadet@galaxy.test', 350])
+    await flushQueue()
+    assert.equal(notifications.length, 1)
+  })
+
+  it('raises the skill to the minimum of a new position, but never lowers it', async () => {
+    await edit(NOVA_QUASAR, 'nova')
+    const { data: kept } = await PATCH(draft(NOVA_QUASAR), { position_ID: STAR_CARTOGRAPHER }, as('nova'))
+    assert.equal(kept.wormholeNavigationSkill, 9)
+    await edit(ORION_KOVACS, 'nova')
+    await PATCH(draft(ORION_KOVACS), { wormholeNavigationSkill: 2 }, as('nova'))
+    const { data: raised } = await PATCH(draft(ORION_KOVACS), { position_ID: WORMHOLE_PILOT }, as('nova'))
+    assert.equal(raised.wormholeNavigationSkill, 7)
+  })
+
+  it('validates the candidate when the draft is saved', async () => {
+    await edit(NOVA_QUASAR, 'nova')
+    await PATCH(draft(NOVA_QUASAR), { wormholeNavigationSkill: 1 }, as('nova'))
+    assert.deepEqual(await outcome(save(NOVA_QUASAR, 'nova')), { status: 400, code: 'SKILL_BELOW_POSITION_MINIMUM' })
+
+    const { data: created } = await POST('/galactic/Spacefarers', {}, as('nova'))
+    await PATCH(draft(created.ID), candidate('MILSANI', 'luna.csillag@galaxy.test'), as('nova'))
+    assert.deepEqual(await outcome(save(created.ID, 'nova')), { status: 409, code: 'EMAIL_TAKEN' })
+    await flushQueue()
+    assert.equal(notifications.length, 0)
+  })
+
+  it('rejects another planet already in the draft', async () => {
+    assert.deepEqual(await outcome(POST('/galactic/Spacefarers', { originPlanet_code: 'MOSERROTH' }, as('nova'))), { status: 403, code: 'FOREIGN_PLANET' })
+    await edit(NOVA_QUASAR, 'nova')
+    assert.deepEqual(await outcome(PATCH(draft(NOVA_QUASAR), { originPlanet_code: 'MOSERROTH' }, as('nova'))), { status: 403, code: 'FOREIGN_PLANET' })
+  })
+
+  it('does not let a viewer or a commander of another planet open a draft', async () => {
+    assert.equal(await status(POST('/galactic/Spacefarers', {}, as('luna'))), 403, 'viewer creates')
+    assert.equal(await status(edit(LUNA_CSILLAG, 'luna')), 403, 'viewer edits')
+    assert.equal(await status(edit(LUNA_CSILLAG, 'nova')), 403, 'other planet')
+  })
+
+  it('hides a draft from other users, by key and through its associations', async () => {
+    await edit(NOVA_QUASAR, 'nova')
+    for (const user of ['luna', 'tandil']) {
+      for (const path of ['', '/originPlanet', '/position', '/DraftAdministrativeData']) {
+        assert.equal(await status(GET(`${draft(NOVA_QUASAR)}${path}`, as(user))), 404, `${user} ${path || 'by key'}`)
+      }
+    }
+  })
+
+  it('hides create, edit and delete from viewers', async () => {
+    assert.equal((await GET('/galactic/Configuration', as('luna'))).data.isCommander, false)
+    assert.equal((await GET('/galactic/Configuration', as('nova'))).data.isCommander, true)
+    const { data } = await GET('/galactic/$metadata?$format=json', as('luna'))
+    const spacefarers = data.GalacticService.$Annotations['GalacticService.Spacefarers']
+    for (const term of ['@UI.CreateHidden', '@UI.UpdateHidden', '@UI.DeleteHidden']) {
+      assert.deepEqual(spacefarers[term], { $Not: { $Path: '/GalacticService.EntityContainer/Configuration/isCommander' } }, term)
+    }
+  })
+
+  it('shows the cosmic details and refreshes the stardust status when the collection changes', async () => {
+    const { data } = await GET('/galactic/$metadata?$format=json', as('luna'))
+    const spacefarers = data.GalacticService.$Annotations['GalacticService.Spacefarers']
+    const cosmic = spacefarers['@UI.FieldGroup#CosmicDetails'].Data.map((field: { Value: { $Path: string } }) => field.Value.$Path)
+    assert.ok(['stardustCollection', 'spacesuitColor_code'].every(path => cosmic.includes(path)), cosmic.join())
+    assert.ok(spacefarers['@UI.Facets'].some((facet: { Target: string }) => facet.Target === '@UI.FieldGroup#CosmicDetails'))
+    const sideEffects = spacefarers['@Common.SideEffects#StardustCollection']
+    assert.deepEqual(sideEffects.SourceProperties, ['stardustCollection'])
+    assert.deepEqual(sideEffects.TargetProperties, ['stardustStatus', 'stardustCriticality'])
+  })
+})
