@@ -4,8 +4,8 @@ using galactic from '../db/schema';
 service GalacticService @(path: '/galactic') {
 
   @restrict: [
-    { grant: 'READ', to: 'Viewer',    where: 'originPlanet_code = $user.planet' },
-    { grant: '*',    to: 'Commander', where: 'originPlanet_code = $user.planet' }
+    { grant: 'READ', to: 'Viewer',    where: (originPlanet.code = $user.planet) },
+    { grant: '*',    to: 'Commander', where: (originPlanet.code = $user.planet) }
   ]
   entity Spacefarers as projection on galactic.Spacefarers;
 
