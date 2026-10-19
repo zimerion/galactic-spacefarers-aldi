@@ -1,0 +1,123 @@
+@server=http://localhost:4004
+
+### Anonymous request is rejected with 401
+GET {{server}}/galactic/Spacefarers
+
+
+### User without a role is rejected with 403
+GET {{server}}/galactic/Spacefarers
+Authorization: Basic intruder:
+
+
+### Commander of Milsani Way sees only Milsani spacefarers
+GET {{server}}/galactic/Spacefarers?$expand=originPlanet,spacesuitColor,position
+Authorization: Basic nova:
+
+
+### Viewer of Moser Roth sees only Moser Roth spacefarers
+GET {{server}}/galactic/Spacefarers
+Authorization: Basic luna:
+
+
+### Commander of the empty planet Tandil sees nobody
+GET {{server}}/galactic/Spacefarers
+Authorization: Basic tandil:
+
+
+### Spacefarer of another planet is not found
+GET {{server}}/galactic/Spacefarers(147200a1-4ded-4dee-8a5b-9613b72d2636)
+Authorization: Basic nova:
+
+
+### Commander enlists a spacefarer on their own planet
+# @name enlist
+POST {{server}}/galactic/Spacefarers
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "firstName": "Kira",
+  "lastName": "Comet",
+  "email": "kira.comet@galaxy.test",
+  "stardustCollection": 1200,
+  "wormholeNavigationSkill": 4,
+  "originPlanet_code": "MILSANI",
+  "spacesuitColor_code": "SKY",
+  "position_ID": "231ebbf0-0a0d-4451-a06c-789251d68e4f"
+}
+
+
+### Commander updates the new spacefarer
+PATCH {{server}}/galactic/Spacefarers({{enlist.response.body.$.ID}})
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "stardustCollection": 5200
+}
+
+
+### Commander removes the new spacefarer
+DELETE {{server}}/galactic/Spacefarers({{enlist.response.body.$.ID}})
+Authorization: Basic nova:
+
+
+### Commander cannot enlist on another planet
+POST {{server}}/galactic/Spacefarers
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "firstName": "Sneaky",
+  "lastName": "Spy",
+  "email": "sneaky.spy@galaxy.test",
+  "originPlanet_code": "MOSERROTH"
+}
+
+
+### Viewer cannot write
+PATCH {{server}}/galactic/Spacefarers(147200a1-4ded-4dee-8a5b-9613b72d2636)
+Content-Type: application/json
+Authorization: Basic luna:
+
+{
+  "stardustCollection": 0
+}
+
+
+### Associations of a spacefarer from another planet are not found
+GET {{server}}/galactic/Spacefarers(147200a1-4ded-4dee-8a5b-9613b72d2636)/originPlanet
+Authorization: Basic nova:
+
+
+### Commander cannot move a spacefarer to another planet
+PATCH {{server}}/galactic/Spacefarers(04ae85f9-b0f3-48e8-bf63-1136711c9062)
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "originPlanet_code": "MOSERROTH"
+}
+
+
+### E-mail addresses are unique across all planets
+POST {{server}}/galactic/Spacefarers
+Content-Type: application/json
+Authorization: Basic tandil:
+
+{
+  "firstName": "Luna",
+  "lastName": "Twin",
+  "email": "luna.csillag@galaxy.test",
+  "originPlanet_code": "TANDIL"
+}
+
+
+### Value lists are readable for viewers and commanders
+GET {{server}}/galactic/Positions?$expand=department
+Authorization: Basic luna:
+
+
+### Value lists are not readable without a role
+GET {{server}}/galactic/Positions
+Authorization: Basic intruder:

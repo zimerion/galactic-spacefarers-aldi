@@ -10,6 +10,7 @@
     "@sap/xssec": "^4"
   },
   "devDependencies": {
+    "@cap-js/cds-test": "^1.0.2",
     "@cap-js/cds-typer": "^0.41.1",
     "@cap-js/cds-types": "^0.20.0",
     "@cap-js/sqlite": "^3",
@@ -25,7 +26,9 @@
     "start": "cds-serve",
     "watch": "cds watch",
     "lint": "eslint .",
-    "typecheck": "cds-typer \"*\" && tsc --noEmit"
+    "typecheck": "cds-typer \"*\" && tsc --noEmit",
+    "pretest": "cds-typer \"*\"",
+    "test": "node --import tsx --import ./test/setup.ts --test \"test/**/*.test.ts\""
   },
   "private": true,
   "cds": {
