@@ -6,6 +6,7 @@
     "node": ">=24"
   },
   "dependencies": {
+    "@cap-js/notifications": "^1.1.1",
     "@sap/cds": "^10",
     "@sap/xssec": "^4"
   },

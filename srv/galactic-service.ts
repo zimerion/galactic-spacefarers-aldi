@@ -1,7 +1,16 @@
 import cds from '@sap/cds'
-import { Spacefarers } from '#cds-models/GalacticService'
+import { Positions, Spacefarers, type Position } from '#cds-models/GalacticService'
 
 const planetsOf = (user: cds.User): string[] => [user.attr.planet ?? []].flat()
+
+const STARDUST_BONUS_PER_SKILL_LEVEL = 50
+
+const positionOf = async (ID?: string | null) =>
+  ID ? SELECT.one.from(Positions, ID).columns('name', 'minNavigationSkill') : undefined
+
+const rejectSkill = (req: cds.Request, position: Position) => req.error({
+  status: 400, message: 'SKILL_BELOW_POSITION_MINIMUM', args: [position.name, position.minNavigationSkill], target: 'wormholeNavigationSkill',
+})
 
 const isUniqueViolation = (err: unknown): err is Error =>
   err instanceof Error && /UNIQUE constraint failed|unique constraint violated|duplicate key value/i.test(err.message)
@@ -29,6 +38,23 @@ export default class GalacticService extends cds.ApplicationService {
       if (email) req.data.email = email.toLowerCase()
     })
 
+    this.before('CREATE', Spacefarers, async req => {
+      if (req.errors) return
+      const position = await positionOf(req.data.position_ID)
+      const skill = req.data.wormholeNavigationSkill = Number(req.data.wormholeNavigationSkill ?? position?.minNavigationSkill ?? 1)
+      if (position && skill < (position.minNavigationSkill ?? 1)) return rejectSkill(req, position)
+      req.data.stardustCollection = Number(req.data.stardustCollection ?? 0) + skill * STARDUST_BONUS_PER_SKILL_LEVEL
+    })
+
+    this.before('UPDATE', Spacefarers, async req => {
+      const { position_ID, wormholeNavigationSkill } = req.data
+      if (req.errors || (position_ID === undefined && wormholeNavigationSkill === undefined)) return
+      const current = await SELECT.one.from(req.subject).columns('position_ID', 'wormholeNavigationSkill')
+      const position = await positionOf(position_ID === undefined ? current?.position_ID : position_ID)
+      const skill = Number(wormholeNavigationSkill ?? current?.wormholeNavigationSkill)
+      if (position && skill < (position.minNavigationSkill ?? 1)) return rejectSkill(req, position)
+    })
+
     this.on(['CREATE', 'UPDATE'], Spacefarers, async (req, next) => {
       try {
         return await next()
@@ -38,6 +64,11 @@ export default class GalacticService extends cds.ApplicationService {
           ? req.reject({ status: 409, message: 'EMAIL_TAKEN', target: 'email' })
           : req.reject({ status: 409, message: 'SPACEFARER_EXISTS' })
       }
+    })
+
+    this.after('CREATE', Spacefarers, async (_, req) => {
+      const { firstName, lastName, email } = req.data
+      await this.emit('SpacefarerWelcomed', { firstName, lastName, recipients: [email] })
     })
 
     return super.init()
