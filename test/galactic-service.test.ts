@@ -1,12 +1,25 @@
 import cds from '@sap/cds'
-import { beforeEach, describe, it } from 'node:test'
+import { before, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import type { Spacefarer } from '#cds-models/GalacticService'
 
 const test = cds.test(import.meta.dirname + '/..')
 const { GET, POST, PUT, PATCH, DELETE } = test
 
-beforeEach(() => test.data.reset())
+type Notification = { NotificationTypeKey: string, Recipients: { RecipientId: string }[], Properties: { Key: string, Value: string }[] }
+const notifications: Notification[] = []
+let notifier: cds.Service
+const flushQueue = () => notifier.flush()
+
+before(async () => {
+  notifier = await cds.connect.to('notifications')
+  notifier.before('*', req => { notifications.push(req.data) })
+})
+
+beforeEach(async () => {
+  await test.data.reset()
+  notifications.length = 0
+})
 
 type Outcome = { status: number, code?: string }
 type ErrorBody = { code?: string, message?: string, target?: string }
@@ -26,6 +39,9 @@ const NOVA_QUASAR = '04ae85f9-b0f3-48e8-bf63-1136711c9062'
 const NAVIGATION_CORPS = '387d3c42-9828-45a3-bf3f-df1607d1bf16'
 const LUNA_CSILLAG = '147200a1-4ded-4dee-8a5b-9613b72d2636'
 const UNKNOWN_ID = '99999999-0000-4000-8000-000000000001'
+const WORMHOLE_PILOT = 'c8786d2d-05c9-49bc-86ea-769378e7955a'
+const STAR_CARTOGRAPHER = '231ebbf0-0a0d-4451-a06c-789251d68e4f'
+const ORION_KOVACS = '1d8f8e8a-afe8-4da1-a635-dc81758fc659'
 const ENTITIES = ['Spacefarers', 'Departments', 'Positions', 'Planets', 'SuitColors']
 const VALUE_LISTS = ['Departments', 'Positions', 'Planets', 'SuitColors']
 
@@ -185,5 +201,76 @@ describe('GalacticService CRUD', () => {
   it('exposes departments and positions as read-only', async () => {
     assert.equal(await status(POST('/galactic/Departments', { name: 'Rogue Department' }, as('nova'))), 405)
     assert.equal(await status(POST('/galactic/Positions', { name: 'Rogue Position' }, as('nova'))), 405)
+  })
+})
+
+describe('GalacticService candidate preparation', () => {
+  it('rejects a wormhole navigation skill below the minimum of the position', async () => {
+    const candidate = { ...newSpacefarer('MILSANI', 'rookie@galaxy.test'), position_ID: WORMHOLE_PILOT, wormholeNavigationSkill: 3 }
+    assert.equal(await status(POST('/galactic/Spacefarers', candidate, as('nova'))), 400)
+    const error = await errorOf(POST('/galactic/Spacefarers', candidate, as('nova')))
+    assert.deepEqual(error && { code: error.code, message: error.message, target: error.target }, {
+      code: 'SKILL_BELOW_POSITION_MINIMUM',
+      message: 'A Specialbuy Wormhole Pilot needs a wormhole navigation skill of at least 7.',
+      target: 'wormholeNavigationSkill',
+    })
+  })
+
+  it('starts a candidate without a skill at the minimum of their position', async () => {
+    const candidate = { ...newSpacefarer('MILSANI', 'mapper@galaxy.test'), position_ID: STAR_CARTOGRAPHER }
+    const { data } = await POST('/galactic/Spacefarers', candidate, as('nova'))
+    assert.equal(data.wormholeNavigationSkill, 4)
+  })
+
+  it('adds a launch bonus of 50 stardust per skill level on creation', async () => {
+    const candidate = { ...newSpacefarer('MILSANI', 'bonus@galaxy.test'), stardustCollection: 100, wormholeNavigationSkill: 5 }
+    const { data } = await POST('/galactic/Spacefarers', candidate, as('nova'))
+    assert.equal(data.stardustCollection, 350)
+  })
+
+  it('adds numbers sent as strings instead of joining them', async () => {
+    const candidate = { ...newSpacefarer('MILSANI', 'strings@galaxy.test'), stardustCollection: '100', wormholeNavigationSkill: 2 }
+    const { data } = await POST('/galactic/Spacefarers', candidate, as('nova'))
+    assert.equal(data.stardustCollection, 200)
+  })
+
+  it('does not add the launch bonus on updates', async () => {
+    const { data } = await PATCH(`/galactic/Spacefarers(${NOVA_QUASAR})`, { stardustCollection: 42, wormholeNavigationSkill: 8 }, as('nova'))
+    assert.equal(data.stardustCollection, 42)
+  })
+
+  it('keeps the skill at the minimum of the position on updates', async () => {
+    const attempts = {
+      'lower skill': () => PATCH(`/galactic/Spacefarers(${NOVA_QUASAR})`, { wormholeNavigationSkill: 1 }, as('nova')),
+      'stricter position': () => PATCH(`/galactic/Spacefarers(${ORION_KOVACS})`, { position_ID: WORMHOLE_PILOT }, as('nova')),
+    }
+    for (const [name, attempt] of Object.entries(attempts)) {
+      assert.deepEqual(await outcome(attempt()), { status: 400, code: 'SKILL_BELOW_POSITION_MINIMUM' }, name)
+    }
+  })
+})
+
+describe('GalacticService welcome e-mail', () => {
+  it('sends a welcome e-mail to a newly enlisted spacefarer', async () => {
+    await POST('/galactic/Spacefarers', newSpacefarer('MILSANI', 'Kira.Comet@galaxy.test'), as('nova'))
+    await flushQueue()
+    assert.equal(notifications.length, 1)
+    const [welcome] = notifications
+    assert.match(welcome.NotificationTypeKey, /SpacefarerWelcomed$/)
+    assert.deepEqual(welcome.Recipients, [{ RecipientId: 'kira.comet@galaxy.test' }])
+    assert.deepEqual(Object.fromEntries(welcome.Properties.map(p => [p.Key, p.Value])), { firstName: 'Test', lastName: 'Cadet' })
+  })
+
+  it('does not send a welcome e-mail when enlisting fails', async () => {
+    assert.deepEqual(await outcome(POST('/galactic/Spacefarers', newSpacefarer('MOSERROTH', 'spy@galaxy.test'), as('nova'))), { status: 403, code: 'FOREIGN_PLANET' })
+    assert.deepEqual(await outcome(POST('/galactic/Spacefarers', newSpacefarer('MILSANI', 'luna.csillag@galaxy.test'), as('nova'))), { status: 409, code: 'EMAIL_TAKEN' })
+    await flushQueue()
+    assert.equal(notifications.length, 0)
+  })
+
+  it('does not send a welcome e-mail on updates', async () => {
+    await PATCH(`/galactic/Spacefarers(${NOVA_QUASAR})`, { stardustCollection: 1 }, as('nova'))
+    await flushQueue()
+    assert.equal(notifications.length, 0)
   })
 })

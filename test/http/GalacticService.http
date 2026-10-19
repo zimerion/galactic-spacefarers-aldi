@@ -121,3 +121,33 @@ Authorization: Basic luna:
 ### Value lists are not readable without a role
 GET {{server}}/galactic/Positions
 Authorization: Basic intruder:
+
+
+### Candidate gets the minimum skill of the position, a launch bonus of 50 stardust per skill level and a welcome e-mail (see the server console)
+POST {{server}}/galactic/Spacefarers
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "firstName": "Mira",
+  "lastName": "Nebula",
+  "email": "mira.nebula@galaxy.test",
+  "stardustCollection": 100,
+  "originPlanet_code": "MILSANI",
+  "position_ID": "231ebbf0-0a0d-4451-a06c-789251d68e4f"
+}
+
+
+### Candidate below the skill minimum of the position is rejected
+POST {{server}}/galactic/Spacefarers
+Content-Type: application/json
+Authorization: Basic nova:
+
+{
+  "firstName": "Rookie",
+  "lastName": "Pilot",
+  "email": "rookie.pilot@galaxy.test",
+  "wormholeNavigationSkill": 3,
+  "originPlanet_code": "MILSANI",
+  "position_ID": "c8786d2d-05c9-49bc-86ea-769378e7955a"
+}
