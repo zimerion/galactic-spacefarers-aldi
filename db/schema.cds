@@ -11,6 +11,13 @@ entity SuitColors : CodeList {
       hex  : String(7)  @title: '{i18n>Hex}' @assert.format: '^#[0-9A-Fa-f]{6}$';
 }
 
+entity StardustStatuses : CodeList {
+  key code        : String(10) @title: '{i18n>StardustStatus}';
+      minStardust : Integer    @mandatory;
+      maxStardust : Integer;
+      criticality : Integer;
+}
+
 @cds.odata.valuelist
 @assert.unique: { name: [name] }
 entity Departments : cuid, managed {
@@ -43,4 +50,9 @@ entity Spacefarers : cuid, managed {
   spacesuitColor          : Association to SuitColors  @assert.target @title: '{i18n>SpacesuitColor}';
   position                : Association to Positions   @assert.target @title: '{i18n>Position}';
   departmentName          : String(100) @title: '{i18n>Department}' = position.department.name;
+
+  stardustLevel           : Association to StardustStatuses @title: '{i18n>StardustStatus}' on  stardustCollection >= stardustLevel.minStardust
+                                                             and (stardustLevel.maxStardust is null or stardustCollection < stardustLevel.maxStardust);
+  stardustStatus          : String(10) @title: '{i18n>StardustStatus}' = stardustLevel.code;
+  stardustCriticality     : Integer = stardustLevel.criticality;
 }
